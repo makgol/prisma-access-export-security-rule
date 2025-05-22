@@ -26,12 +26,12 @@ def remove_duplicates_preserve_order(lst):
     seen = set()
     return [x for x in lst if not (x in seen or seen.add(x))]
 
-def getSecurityRules(token, current_time):
+def getObjects(token, current_time, urlList):
     limit = 200
     rootDir = "exported_csv_files"
     fileDir = os.path.join(rootDir, current_time)
     os.makedirs(fileDir, exist_ok=True)
-    url = "https://api.sase.paloaltonetworks.com/sse/config/v1/security-rules"
+
     headers = {
          "Accept": "application/json",
          "Authorization": "Bearer " + token,
@@ -40,33 +40,33 @@ def getSecurityRules(token, current_time):
          "Mobile Users",
          "Remote Networks",
     ]
-
-    for scope in scopes:
-        params = {
-            "folder": scope,
-            "limit": limit,
-        }
-        i = 0
-        rules = []
-        while True:
-            params["offset"] = i
-            getResponse = requests.get(url, headers=headers, params=params)
-            jsonData = json.loads(getResponse.text)
-            if len(jsonData["data"]) == 0:
-                break
-            rules = rules + jsonData["data"]
-            i += limit
-        filename = "./%s/%s.csv" % (fileDir, scope.replace(" ", ""))
-        fieldnames = []
-        for rule in rules:
-            keyList = rule.keys()
-            fieldnames = remove_duplicates_preserve_order(fieldnames + list(keyList))
-
-        with open(filename, "w") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
-            writer.writeheader()
+    for url in urlList:
+        for scope in scopes:
+            params = {
+                "folder": scope,
+                "limit": limit,
+            }
+            i = 0
+            rules = []
+            while True:
+                params["offset"] = i
+                getResponse = requests.get(urlList[url], headers=headers, params=params)
+                jsonData = json.loads(getResponse.text)
+                if len(jsonData["data"]) == 0:
+                    break
+                rules = rules + jsonData["data"]
+                i += limit
+            filename = "./%s/%s-%s.csv" % (fileDir, scope.replace(" ", ""), url)
+            fieldnames = []
             for rule in rules:
-                writer.writerow(rule)
+                keyList = rule.keys()
+                fieldnames = remove_duplicates_preserve_order(fieldnames + list(keyList))
+    
+            with open(filename, "w") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
+                writer.writeheader()
+                for rule in rules:
+                    writer.writerow(rule)
 
 def validateToken(file):
     try:
@@ -108,7 +108,12 @@ def main():
         }
         with open(tokenfile, "w") as f:
             json.dump(writeData, f, indent=4, ensure_ascii=False)
-    getSecurityRules(token, current_time)
+    urlList = {
+        "SecurityRule": "https://api.sase.paloaltonetworks.com/sse/config/v1/security-rules",
+        "Addresses": "https://api.sase.paloaltonetworks.com/sse/config/v1/addresses",
+        "AddressGroups": "https://api.sase.paloaltonetworks.com/sse/config/v1/address-groups",
+    }
+    getObjects(token, current_time, urlList)
 
 if __name__=="__main__":
     main()
