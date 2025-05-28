@@ -6,9 +6,10 @@ authors = ["makgol"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.9,<3.14"
 requests = "^2.32.3"
 pytz = "^2025.2"
+pyinstaller = "^6.13.0"
 
 
 [build-system]
