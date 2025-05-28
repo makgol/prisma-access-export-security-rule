@@ -1,0 +1,72 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  FILE_NAME: prisma-access-export-security-rule
+  PYTHON_FILE: export.py
+
+jobs:
+  build-and-release:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_label: linux
+            archive_format: tar.gz
+          - os: macos-latest
+            asset_label: macos
+            archive_format: tar.gz
+          - os: windows-latest
+            asset_label: windows
+            archive_format: zip
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Install Poetry and dependencies
+        run: |
+          python -m pip install --upgrade pip "poetry<1.9"
+          poetry install --no-dev
+          pip install pyinstaller
+
+      - name: Create executable with PyInstaller
+        run: poetry run pyinstaller ${{ env.PYTHON_FILE }} --name ${{ env.FILE_NAME }} --onefile
+
+      - name: Create archive for mac and linux
+        if: matrix.asset_label != 'windows'
+        run: |
+          pushd dist
+          tar -zcvf ${{ env.FILE_NAME }}-${{ matrix.asset_label }}.${{ matrix.archive_format }} ${{ env.FILE_NAME }}
+          popd
+
+      - name: Create archive for windows
+        if: matrix.asset_label == 'windows'
+        run: |
+          pushd dist
+          Compress-Archive -Path ${{ env.FILE_NAME }}.exe -DestinationPath ${{ env.FILE_NAME }}-${{ matrix.asset_label }}.${{ matrix.archive_format }}
+          popd
+
+      - name: Adjust archive path for upload
+        id: paths
+        shell: bash
+        run: |
+          echo "asset_path=dist/${{ env.FILE_NAME }}-${{ matrix.asset_label }}.${{ matrix.archive_format }}" >> $GITHUB_OUTPUT
+
+      - name: Upload executable to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.paths.outputs.asset_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
