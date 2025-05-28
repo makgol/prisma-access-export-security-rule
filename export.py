@@ -62,7 +62,7 @@ def getObjects(token, current_time, urlList):
                 keyList = rule.keys()
                 fieldnames = remove_duplicates_preserve_order(fieldnames + list(keyList))
     
-            with open(filename, "w") as f:
+            with open(filename, "w", newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
                 writer.writeheader()
                 for rule in rules:
