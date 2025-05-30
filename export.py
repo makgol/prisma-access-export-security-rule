@@ -12,7 +12,7 @@ def paAuth(pacred):
     headers = {
                "Content-Type": "application/x-www-form-urlencoded",
             }
-    data = "grant_type=client_credentials&scope=tsg_id:" + pacred.tsgid
+    data = "grant_type=client_credentials&scope=tsg_id:%s" % pacred.tsgid
     getResponse = requests.post(url, headers=headers, data=data, auth=(pacred.uid, pacred.secret))
     jsonData = json.loads(getResponse.text)
     responseHeades = getResponse.headers
@@ -34,7 +34,7 @@ def getObjects(token, current_time, urlList):
 
     headers = {
          "Accept": "application/json",
-         "Authorization": "Bearer " + token,
+         "Authorization": "Bearer %s" % token,
     }
     scopes = [
          "Mobile Users",
@@ -54,13 +54,14 @@ def getObjects(token, current_time, urlList):
                 jsonData = json.loads(getResponse.text)
                 if len(jsonData["data"]) == 0:
                     break
-                rules = rules + jsonData["data"]
+                rules.extend(jsonData["data"])
                 i += limit
             filename = "./%s/%s-%s.csv" % (fileDir, scope.replace(" ", ""), url)
             fieldnames = []
             for rule in rules:
-                keyList = rule.keys()
-                fieldnames = remove_duplicates_preserve_order(fieldnames + list(keyList))
+                keyList = list(rule.keys())
+                fieldnames.extend(keyList)
+                fieldnames = remove_duplicates_preserve_order(fieldnames)
     
             with open(filename, "w", newline='') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
